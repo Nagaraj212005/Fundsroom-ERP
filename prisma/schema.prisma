@@ -21,6 +21,27 @@ enum LeadStatus {
   LOST
 }
 
+enum EnquiryStatus {
+  NEW
+  QUOTED
+  WON
+  LOST
+}
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+}
+
+enum SalesOrderStatus {
+  CREATED
+  RESERVED
+  DISPATCHED
+  CANCELLED
+}
+
 model User {
   id           String  @id @default(uuid())
   fullName     String
@@ -97,7 +118,9 @@ model Employee {
   user   User   @relation(fields: [userId], references: [id])
 
   assignedLeads Lead[]
-  sales Sale[]
+  sales         Sale[]
+  enquiries     Enquiry[]
+  quotations    Quotation[]
 
   joiningDate DateTime
 
@@ -117,7 +140,9 @@ model Customer {
   companyId String
   company   Company @relation(fields: [companyId], references: [id])
 
-  sales Sale[]
+  sales      Sale[]
+  enquiries  Enquiry[]
+  quotations Quotation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -133,8 +158,11 @@ model Product {
 
   companyId String
   company   Company @relation(fields: [companyId], references: [id])
-  
-  saleItems SaleItem[]
+
+  saleItems      SaleItem[]
+  inventory      Inventory?
+  enquiryItems   EnquiryItem[]
+  quotationItems QuotationItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -161,37 +189,137 @@ model Lead {
 }
 
 model Sale {
-  id          String   @id @default(uuid())
-  saleNumber  String   @unique
+  id         String @id @default(uuid())
+  saleNumber String @unique
 
-  customerId  String
-  customer    Customer @relation(fields: [customerId], references: [id])
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
 
-  employeeId  String
-  employee    Employee @relation(fields: [employeeId], references: [id])
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
 
   totalAmount Float
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   items SaleItem[]
 }
 
 model SaleItem {
-  id        String  @id @default(uuid())
+  id String @id @default(uuid())
 
-  saleId    String
-  sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  saleId String
+  sale   Sale   @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
   productId String
   product   Product @relation(fields: [productId], references: [id])
 
-  quantity  Int
-  price     Float
-  subtotal  Float
+  quantity Int
+  price    Float
+  subtotal Float
 
   createdAt DateTime @default(now())
+}
+
+model Inventory {
+  id                String                 @id @default(uuid())
+  productId         String                 @unique
+  product           Product                @relation(fields: [productId], references: [id])
+  physicalQuantity  Int                    @default(0)
+  reservedQuantity  Int                    @default(0)
+  availableQuantity Int                    @default(0)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  reservations      InventoryReservation[]
+}
+
+model Enquiry {
+  id            String        @id @default(uuid())
+  enquiryNumber String        @unique
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  employeeId    String
+  employee      Employee      @relation(fields: [employeeId], references: [id])
+  status        EnquiryStatus @default(NEW)
+  items         EnquiryItem[]
+  quotations    Quotation[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model EnquiryItem {
+  id        String   @id @default(uuid())
+  enquiryId String
+  enquiry   Enquiry  @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int
+  createdAt DateTime @default(now())
+}
+
+model Quotation {
+  id              String          @id @default(uuid())
+  quotationNumber String          @unique
+  customerId      String
+  customer        Customer        @relation(fields: [customerId], references: [id])
+  employeeId      String
+  employee        Employee        @relation(fields: [employeeId], references: [id])
+  enquiryId       String?
+  enquiry         Enquiry?        @relation(fields: [enquiryId], references: [id])
+  discount        Float           @default(0)
+  gst             Float           @default(0)
+  subtotal        Float           @default(0)
+  grandTotal      Float           @default(0)
+  status          QuotationStatus @default(DRAFT)
+  items           QuotationItem[]
+  salesOrder      SalesOrder?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model QuotationItem {
+  id          String    @id @default(uuid())
+  quotationId String
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id])
+  quantity    Int
+  unitPrice   Float
+  subtotal    Float
+  createdAt   DateTime  @default(now())
+}
+
+model SalesOrder {
+  id           String                 @id @default(uuid())
+  orderNumber  String                 @unique
+  quotationId  String                 @unique
+  quotation    Quotation              @relation(fields: [quotationId], references: [id])
+  status       SalesOrderStatus       @default(CREATED)
+  reservations InventoryReservation[]
+  dispatch     Dispatch?
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+}
+
+model InventoryReservation {
+  id           String     @id @default(uuid())
+  salesOrderId String
+  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  inventoryId  String
+  inventory    Inventory  @relation(fields: [inventoryId], references: [id])
+  quantity     Int
+  createdAt    DateTime   @default(now())
+
+  @@unique([salesOrderId, inventoryId])
+}
+
+model Dispatch {
+  id           String     @id @default(uuid())
+  salesOrderId String     @unique
+  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id])
+  dispatchDate DateTime   @default(now())
+  createdAt    DateTime   @default(now())
 }
 
 model AuditLog {
