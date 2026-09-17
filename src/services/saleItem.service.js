@@ -46,7 +46,7 @@ const validateItem = async (data, existingItem = null) => {
 
 const createSaleItem = async (data, userId) => {
   const itemData = await validateItem(data);
-  const saleItem = await saleItemRepository.createSaleItem(itemData);
+  const saleItem = await saleItemRepository.createSaleItemWithStock(itemData);
 
   await auditService.createAuditLog(userId, "CREATE", "SaleItem", saleItem.id);
 
@@ -68,7 +68,7 @@ const updateSaleItem = async (id, data, userId) => {
   }
 
   const itemData = await validateItem(data, existingItem);
-  const saleItem = await saleItemRepository.updateSaleItem(id, itemData);
+  const saleItem = await saleItemRepository.updateSaleItemWithStock(id, itemData);
 
   await auditService.createAuditLog(userId, "UPDATE", "SaleItem", saleItem.id);
 
@@ -81,7 +81,7 @@ const deleteSaleItem = async (id, userId) => {
     throw new Error("SaleItem not found.");
   }
 
-  await saleItemRepository.deleteSaleItem(id);
+  await saleItemRepository.deleteSaleItemWithStock(id);
   await auditService.createAuditLog(userId, "DELETE", "SaleItem", id);
 
   return true;
