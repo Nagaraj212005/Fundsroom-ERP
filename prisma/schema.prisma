@@ -1,0 +1,205 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  SALES_USER
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  NEGOTIATION
+  WON
+  LOST
+}
+
+model User {
+  id           String  @id @default(uuid())
+  fullName     String
+  email        String  @unique
+  passwordHash String
+  role         Role
+  isActive     Boolean @default(true)
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+
+  employee Employee?
+
+  auditLogs AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Company {
+  id             String   @id @default(uuid())
+  companyName    String
+  gstNumber      String   @unique
+  email          String
+  phone          String
+  address        String
+  contactPerson  String
+  agreementStart DateTime
+  agreementEnd   DateTime
+  isActive       Boolean  @default(true)
+
+  users       User[]
+  departments Department[]
+  employees   Employee[]
+  customers   Customer[]
+  products    Product[]
+  leads       Lead[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Department {
+  id   String @id @default(uuid())
+  name String
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  users     User[]
+  employees Employee[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Employee {
+  id String @id @default(uuid())
+
+  employeeCode String @unique
+  designation  String
+  salary       Float
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  assignedLeads Lead[]
+  sales Sale[]
+
+  joiningDate DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Customer {
+  id           String  @id @default(uuid())
+  customerCode String  @unique
+  name         String
+  email        String?
+  phone        String?
+  companyName  String?
+  address      String?
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  sales Sale[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Product {
+  id          String  @id @default(uuid())
+  productCode String  @unique
+  name        String
+  description String?
+  price       Float
+  stock       Int     @default(0)
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+  
+  saleItems SaleItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Lead {
+  id          String     @id @default(uuid())
+  leadCode    String     @unique
+  fullName    String
+  email       String?
+  phone       String?
+  companyName String?
+  source      String?
+  status      LeadStatus @default(NEW)
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  assignedToId String?
+  assignedTo   Employee? @relation(fields: [assignedToId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Sale {
+  id          String   @id @default(uuid())
+  saleNumber  String   @unique
+
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id])
+
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+
+  totalAmount Float
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items SaleItem[]
+}
+
+model SaleItem {
+  id        String  @id @default(uuid())
+
+  saleId    String
+  sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  quantity  Int
+  price     Float
+  subtotal  Float
+
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String
+  resource   String
+  resourceId String?
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  createdAt  DateTime @default(now())
+}
