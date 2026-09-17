@@ -77,6 +77,16 @@ const getById = (name, id) => repository.findById(name, id);
 const update = async (name, id, data, userId) => {
   const definition = definitions[name];
   const existing = await related(name, id);
+
+  if (name === "quotation" && Object.keys(data).length === 1 && data.status) {
+    if (!["DRAFT", "SENT", "ACCEPTED", "REJECTED"].includes(data.status)) {
+      throw new Error("Invalid quotation status.");
+    }
+    const record = await repository.update(name, id, { status: data.status });
+    if (userId) await auditService.createAuditLog(userId, "UPDATE", definition.resource, id);
+    return record;
+  }
+
   const prepared = await prepare(name, name === "inventory" ? {
     physicalQuantity: data.physicalQuantity ?? existing.physicalQuantity,
     reservedQuantity: data.reservedQuantity ?? existing.reservedQuantity,
